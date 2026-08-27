@@ -82,7 +82,7 @@ nesting are all used without hesitation.
 ## Build
 
 ```
-npm install
+pnpm install
 npm run watch        # rebuilds theme-wide CSS/JS on save
 npm run watch-bs     # same, plus browser-sync live reload (proxies localhost/)
 npm run blocks:build # compiles every block's src/index.js
