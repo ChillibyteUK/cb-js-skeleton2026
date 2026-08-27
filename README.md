@@ -121,7 +121,7 @@ documented drop-in pattern instead — `blocks/_shared/RepeaterField.js` and
 `CLAUDE.md`'s "File layout" for how to wire one into a generated `edit.js`
 by hand). Relationship (a whole grid of posts via `WP_Query`) still has no
 drop-in — build it by hand. The
-**LCP Block Builder** plugin (`ChillibyteUK/lcp-block-builder`, wp-admin GUI,
+**CBP Block Builder** plugin (`ChillibyteUK/cbp-block-builder`, wp-admin GUI,
 local-only) covers repeater/gallery/post_type generation that `add_block.sh`
 doesn't, if it's active on this environment.
 
