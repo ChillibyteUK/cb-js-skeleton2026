@@ -279,3 +279,5 @@ that `clean: false` without replacing it with something that can't do that.
 - No ACF anywhere in this theme — see `cb-skeleton2026` (the sibling
   ACF-based skeleton this one forked from) if a project specifically needs
   ACF instead of native blocks.
+
+- **Optional modules live in `modules/` and are installed by `setup.sh`.** Each is `module.conf` (`description=`, `js_import=fn|./file[|first]`, `css_import=`, `php_require=`) plus a `files/` overlay mirroring the theme root. `setup.sh` prompts y/N per module, copies the chosen ones in after the rename pass (so files carry the project prefix), wires imports/requires, then deletes `modules/`. Add a new opt-in feature there rather than to the core theme when not every project needs it.

@@ -131,3 +131,26 @@ Load order for these is alphabetical by filename, not registration order.
 
 `rm_block.sh` removes a block: the whole `blocks/{slug}` directory plus its
 `src/blocks/{slug}.css` if present. Again, no registration to undo.
+
+## Optional modules
+
+`modules/` holds opt-in features, each a folder with a `module.conf` and a
+`files/` overlay that mirrors the theme root. `setup.sh` lists them, asks y/N
+for each, copies the chosen ones' files in, wires them up, then deletes
+`modules/` — a project only carries what it uses.
+
+| Module | Adds |
+| --- | --- |
+| `popover` | Inline span `[popovertarget]` popovers (JS) |
+| `video-facade` | Click-to-play `[data-video-facade]` thumbnails (JS) |
+| `share` | `[data-share]` Web Share / copy-link button (JS) |
+| `smooth-scroll` | Lenis + GSAP/ScrollTrigger (vendored) with `inc/smooth-scroll.php` |
+| `fixed-header` | Fixed `#masthead` with static `--nav-height` offset (CSS) |
+| `btn-video` | `.btn-video` play-icon button extender (CSS) |
+| `helpers` | `inc/helpers.php` seeded with `content_excerpt()` |
+
+`module.conf` keys (each may repeat): `description=`, `js_import=fn|./file[|first]`
+(import + call in `src/js/theme.js`), `css_import=file.css` (appended to
+`src/css/theme.css`), `php_require=inc/file.php` (appended in `functions.php`).
+To add a module, create `modules/<name>/` with those pieces; no other
+registration is needed.

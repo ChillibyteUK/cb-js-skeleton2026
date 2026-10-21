@@ -46,6 +46,20 @@ function cb_js_skeleton_get_setting( $key, $default = '' ) {
 }
 
 /**
+ * Read a `gallery`-type setting as an array of attachment IDs.
+ *
+ * Stored as a CSV string (see cb_js_skeleton_render_gallery_field()) — order
+ * is the display order.
+ *
+ * @param string $key Setting key, e.g. 'example_gallery'.
+ * @return int[]
+ */
+function cb_js_skeleton_get_gallery_setting( $key ) {
+	$ids = array_filter( array_map( 'absint', explode( ',', cb_js_skeleton_get_setting( $key ) ) ) );
+	return array_values( $ids );
+}
+
+/**
  * Register the settings page, section, and fields.
  *
  * @return void
@@ -211,33 +225,35 @@ function cb_js_skeleton_settings_page_assets( $hook_suffix ) {
 	}
 
 	wp_enqueue_media();
-	wp_enqueue_script(
-		'cb-js-skeleton-gallery-field',
-		get_stylesheet_directory_uri() . '/js/gallery-field.js',
-		array( 'jquery' ),
-		wp_get_theme()->get( 'Version' ),
-		true
+
+	// filemtime() versioning (not the static theme Version): these are
+	// hand-maintained admin scripts, and a static version serves stale JS
+	// after deploys.
+	$admin_scripts = array(
+		'cb-js-skeleton-gallery-field'     => array( 'js/gallery-field.js', array( 'jquery' ) ),
+		'cb-js-skeleton-settings-repeater' => array( 'js/repeater-field.js', array( 'jquery' ) ),
+		'cb-js-skeleton-tabs'              => array( 'js/tabs.js', array() ),
 	);
-	wp_enqueue_script(
-		'cb-js-skeleton-settings-repeater',
-		get_stylesheet_directory_uri() . '/js/repeater-field.js',
-		array( 'jquery' ),
-		wp_get_theme()->get( 'Version' ),
-		true
-	);
-	wp_enqueue_script(
-		'cb-js-skeleton-tabs',
-		get_stylesheet_directory_uri() . '/js/tabs.js',
-		array(),
-		wp_get_theme()->get( 'Version' ),
-		true
-	);
+
+	foreach ( $admin_scripts as $handle => $script ) {
+		$abs = get_stylesheet_directory() . '/' . $script[0];
+
+		if ( file_exists( $abs ) ) {
+			wp_enqueue_script(
+				$handle,
+				get_stylesheet_directory_uri() . '/' . $script[0],
+				$script[1],
+				filemtime( $abs ),
+				true
+			);
+		}
+	}
 }
 add_action( 'admin_enqueue_scripts', 'cb_js_skeleton_settings_page_assets' );
 
 /**
  * Render a single settings field — text/email/url input, a textarea, a
- * gallery picker, or a generic repeater.
+ * richtext classic editor, a gallery picker, or a generic repeater.
  *
  * @param array $args Field args: key, type, placeholder, description.
  * @return void
@@ -250,6 +266,11 @@ function cb_js_skeleton_render_settings_field( $args ) {
 
 	if ( 'repeater' === $args['type'] ) {
 		cb_js_skeleton_render_repeater_field( $args );
+		return;
+	}
+
+	if ( 'richtext' === $args['type'] ) {
+		cb_js_skeleton_render_richtext_field( $args );
 		return;
 	}
 
@@ -322,6 +343,32 @@ function cb_js_skeleton_render_textarea_field( $args ) {
 }
 
 /**
+ * Render a `richtext`-type field — a full classic editor (wp_editor) for
+ * values that need real formatting rather than plain paragraphs. Stored as
+ * HTML like anything else; escape with wp_kses_post() on output.
+ *
+ * @param array $args Field args: key, rows, description.
+ * @return void
+ */
+function cb_js_skeleton_render_richtext_field( $args ) {
+	$value = cb_js_skeleton_get_setting( $args['key'] );
+	wp_editor(
+		$value,
+		'cb_js_skeleton_' . $args['key'],
+		array(
+			'textarea_name' => sprintf( '%s[%s]', CB_JS_SKELETON_SETTINGS_OPTION, $args['key'] ),
+			'textarea_rows' => $args['rows'] ?? 8,
+			'media_buttons' => false,
+		)
+	);
+	if ( ! empty( $args['description'] ) ) {
+		?>
+		<p class="description"><?php echo esc_html( $args['description'] ); ?></p>
+		<?php
+	}
+}
+
+/**
  * Render a `checkbox`-type field.
  *
  * An unticked checkbox posts nothing at all, which is indistinguishable from
@@ -362,16 +409,18 @@ function cb_js_skeleton_render_checkbox_field( $args ) {
 
 /**
  * Render a `gallery`-type field — a hidden CSV-of-IDs input plus a
- * thumbnail strip, driven by the core media modal in multi-select mode.
- * Selection order is preserved as the display order; there's no drag
- * reordering, since re-opening the picker and re-selecting in the wanted
- * order covers it without extra JS.
+ * thumbnail strip, driven by core's native "Edit Gallery" frame
+ * (wp.media.gallery.edit — the same UI as a Gallery block: hover-remove,
+ * in-modal drag reorder, Add to Gallery panel). Selection order is the
+ * display order; after that, each thumbnail is HTML5-draggable (see
+ * js/gallery-field.js) to reorder without reopening the picker — dragging
+ * updates both the DOM order and the hidden input's CSV value.
  *
  * @param array $args Field args: key, description.
  * @return void
  */
 function cb_js_skeleton_render_gallery_field( $args ) {
-	$ids = array_filter( array_map( 'absint', explode( ',', cb_js_skeleton_get_setting( $args['key'] ) ) ) );
+	$ids = cb_js_skeleton_get_gallery_setting( $args['key'] );
 	?>
 	<div class="cb-js-skeleton-gallery-field">
 		<input
@@ -388,13 +437,16 @@ function cb_js_skeleton_render_gallery_field( $args ) {
 					continue;
 				}
 				?>
-				<li><img src="<?php echo esc_url( $thumb[0] ); ?>" alt="" style="width: 80px; height: 80px; object-fit: contain; background: #fff; border: 1px solid #ccc;"></li>
+				<li draggable="true" data-id="<?php echo esc_attr( $id ); ?>" style="cursor: grab;"><img src="<?php echo esc_url( $thumb[0] ); ?>" alt="" style="width: 80px; height: 80px; object-fit: contain; background: #fff; border: 1px solid #ccc; pointer-events: none;"></li>
 				<?php
 			}
 			?>
 		</ul>
+		<?php if ( ! empty( $ids ) ) : ?>
+			<p class="description" style="margin-top: -4px;"><?php esc_html_e( 'Drag thumbnails to reorder.', 'cb-js-skeleton2026' ); ?></p>
+		<?php endif; ?>
 		<p>
-			<button type="button" class="button cb-js-skeleton-gallery-field__select">Select Images</button>
+			<button type="button" class="button cb-js-skeleton-gallery-field__select">Edit Gallery</button>
 			<button type="button" class="button cb-js-skeleton-gallery-field__clear">Clear</button>
 		</p>
 	</div>
@@ -408,8 +460,8 @@ function cb_js_skeleton_render_gallery_field( $args ) {
 
 /**
  * Render a generic repeater field — rows of declaratively-configured
- * sub-fields (text or image), driven by js/repeater-field.js for add/
- * remove/reorder and per-row image selection.
+ * sub-fields (text, image or file), driven by js/repeater-field.js for add/
+ * remove/reorder and per-row media selection.
  *
  * Row indexes in submitted field names don't need to be sequential — the
  * Settings API stores whatever nested array PHP builds from the posted
@@ -521,6 +573,36 @@ function cb_js_skeleton_render_repeater_row( $key, $index, $sub_fields, $row, $n
 						style="flex: 1; background: none; border: none; color: #fff; cursor: pointer; padding: 2px 0; font-size: 13px; line-height: 1; <?php echo $thumb ? '' : 'display: none;'; ?>"
 					>&times;</button>
 				</div>
+			</div>
+				<?php
+			} elseif ( 'file' === $sub_field['type'] ) {
+				$file_name = $value ? basename( get_attached_file( absint( $value ) ) ) : '';
+				?>
+			<div
+				class="cb-js-skeleton-settings-repeater__file"
+				style="flex: 1 1 0%; min-width: 0;"
+			>
+				<span
+					class="cb-js-skeleton-settings-repeater__file-name"
+					style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; margin-bottom: 4px;"
+				><?php echo $file_name ? esc_html( $file_name ) : 'No file selected.'; ?></span>
+				<input
+					type="hidden"
+					class="cb-js-skeleton-settings-repeater__image-input"
+					name="<?php echo esc_attr( $name ); ?>"
+					value="<?php echo esc_attr( $value ); ?>"
+				>
+				<button
+					type="button"
+					class="button cb-js-skeleton-settings-repeater__select-image"
+					data-select-label="Select <?php echo esc_attr( $sub_field['label'] ); ?>"
+					data-button-text="Use this file"
+				>Select file</button>
+				<button
+					type="button"
+					class="button cb-js-skeleton-settings-repeater__clear-image"
+					<?php echo $file_name ? '' : 'style="display: none;"'; ?>
+				>Clear</button>
 			</div>
 				<?php
 			} else {
