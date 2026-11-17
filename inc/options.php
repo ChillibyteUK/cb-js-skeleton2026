@@ -327,12 +327,12 @@ function cb_js_skeleton_render_textarea_field( $args ) {
 		placeholder="<?php echo esc_attr( $args['placeholder'] ?? '' ); ?>"
 		rows="<?php echo (int) ( $args['rows'] ?? ( $is_code ? 10 : 4 ) ); ?>"
 		class="large-text"
-		<?php if ( $is_code ) : ?>
+		<?php if ( $is_code ) { ?>
 		spellcheck="false"
 		autocapitalize="off"
 		autocomplete="off"
 		style="font-family: Consolas, Monaco, monospace; font-size: 12px; white-space: pre; overflow-wrap: normal; overflow-x: auto;"
-		<?php endif; ?>
+		<?php } ?>
 	><?php echo esc_textarea( $value ); ?></textarea>
 	<?php
 	if ( ! empty( $args['description'] ) ) {
@@ -442,9 +442,9 @@ function cb_js_skeleton_render_gallery_field( $args ) {
 			}
 			?>
 		</ul>
-		<?php if ( ! empty( $ids ) ) : ?>
+		<?php if ( ! empty( $ids ) ) { ?>
 			<p class="description" style="margin-top: -4px;"><?php esc_html_e( 'Drag thumbnails to reorder.', 'cb-js-skeleton2026' ); ?></p>
-		<?php endif; ?>
+		<?php } ?>
 		<p>
 			<button type="button" class="button cb-js-skeleton-gallery-field__select">Edit Gallery</button>
 			<button type="button" class="button cb-js-skeleton-gallery-field__clear">Clear</button>

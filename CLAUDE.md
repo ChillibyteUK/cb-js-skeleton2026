@@ -92,6 +92,7 @@ doesn't exist, no matter how standard it looks.
   All confirmed rare-to-never in real usage across ~40 projects/year. If a
   specific project needs one, add it there, not here.
 - **Site-Wide Settings is core, not per-project.** `inc/options.php` — a plain Settings API page (no ACF), storing one serialized array option (`cb_js_skeleton_site_settings`). Read values elsewhere with `cb_js_skeleton_get_setting( $key )`. "Crucial to every theme" per the person building this. GA/GTM only fire for logged-out visitors (`inc/head-tags.php`) so the team's own traffic doesn't skew analytics — a real, previously-known gap in the old `lc-iology2025` theme (fires for everyone there), fixed here from the start rather than retrofitted. GTM's noscript fallback is on `wp_body_open`, not buried in the footer — that's where Google's own docs say it belongs. The SVG icon-upload tab the ACF version of this page had is deliberately not ported here — deferred to a future plugin, not rebuilt as part of dropping ACF. `get_icon()`/`get_icon_choices()` (`inc/utilities.php`) still work exactly as before; just drop an .svg into `img/icons/` by hand instead of uploading it through wp-admin.
+- **URL fields use `SiteUrlInput`, not core's `URLInput` directly** (`blocks/_shared/SiteUrlInput.js`; `add_block.sh` and `RepeaterField`'s `link` type already use it). Core's `URLInput` leaves its suggestion list open after focus leaves the field (a URL typed by hand, nothing selected) and reopens it when the value changes from outside (undo, a row move). `SiteUrlInput` keeps core's `disableSuggestions` switch on unless the field is focused, so it type-aheads over pages and posts, takes plain text when nothing matches, and closes cleanly. It also stores a same-site URL as a root-relative path so links survive moving between environments. Recurring problem, fixed once here: don't reach for `URLInput` in a new field.
 - **Native blocks, not ACF.** Each block is a directory under `blocks/{slug}/`:
   `block.json` (name/title/attributes/supports), `src/index.js` +
   `src/edit.js` (the editing UI — React, using WordPress's own field
@@ -193,6 +194,15 @@ blocks/                 One directory per block (add_block.sh scaffolds here)
                         (selected post ID or 0), `onChange( id )`, `help`. No styling of its own to
                         port — `ComboboxControl` is unstyled beyond what @wordpress/components already
                         provides.
+    useRowMotion.js      Row add/move/remove behaviour for repeater-style fields, used by
+                        RepeaterField. Gives each row a stable key so React moves its DOM node
+                        rather than rewriting rows in place, FLIP-slides the two swapped rows
+                        past each other, marks the moved row .is-moved for a moment (CSS fade in
+                        src/css/editor.css), and keeps focus on the arrow button that was pressed
+                        so repeated presses keep moving the same row. Honours
+                        prefers-reduced-motion.
+    SiteUrlInput.js      URL field wrapping core's URLInput — see the "URL fields use SiteUrlInput"
+                        entry under "Architecture decisions and why" above.
 fonts/                  Drop .woff2 files here — preloaded automatically, no registration step
 src/
   css/                  Theme-wide CSS. theme.css is the @import entry point.
