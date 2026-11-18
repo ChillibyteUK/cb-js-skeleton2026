@@ -155,10 +155,17 @@ inc/
   enqueue.php           Enqueues css/theme.min.css + js/theme.min.js, filemtime-versioned
   class-nav-walker.php  Lightweight Walker_Nav_Menu — nav-link/dropdown-menu classes, no JS
   blocks.php            Globs blocks/*/block.json and register_block_type()s each one — no per-block code
-  options.php           Site-Wide Settings page (plain Settings API, one array option) + cb_js_skeleton_get_setting()
+  options.php           Site-Wide Settings page (plain Settings API, one array option) + cb_js_skeleton_get_setting() / get_gallery_setting() / get_repeater_setting(). Field types: text/email/url, textarea, code, checkbox, richtext (wp_editor), gallery (drag-reorder), repeater (text/image/file sub-fields)
   head-tags.php          Font preload (fonts/*.woff2 glob) + GA/GTM (logged-out only) + Google/Bing verification, reading from the options page
   block-usage.php        [block_usage_table] shortcode — QA utility, lists every block against the published pages/posts using it
-  utilities.php          Reusable, project-agnostic functions (parse_phone, pluralise, estimate_reading_time_in_minutes, get_icon/get_icon_choices) — safe to lift verbatim into any project on this skeleton. Project-specific helpers go in inc/helpers.php instead, created only when needed, not scaffolded here.
+  editor.php            Block-editor extras: "Lede" RichText format enqueue (blocks/_editor-formats), editor assets
+  security.php          Fixed site hardening, no options UI: comments/tags/gravatars/emojis off, security headers, XML-RPC lockdown, user-enumeration blocks, DISALLOW_FILE_EDIT
+  toc.php               [cb_toc] shortcode — h2 table of contents, heading ids injected via the_content filter
+  footnotes.php         [Footnote] tags + [cbp_footnotes] list (ported from the cbp-footnotes plugin, behaviour unchanged)
+  social-icons.php      [social_icons] shortcode, driven by the Social tab of Site-Wide Settings
+  posttypes.php / taxonomies.php  Register nothing by default — commented examples to duplicate
+  utilities.php          Reusable, project-agnostic functions (parse_phone, pluralise, estimate_reading_time_in_minutes, get_icon/get_icon_choices, [contact_phone]/[contact_email] shortcodes, breadcrumbs, FAQ schema, Vimeo embed URL) — safe to lift verbatim into any project on this skeleton. Project-specific helpers go in inc/helpers.php instead, created only when needed, not scaffolded here.
+helpers.php          NOT scaffolded — only exists if the `helpers` module was chosen at setup
 header.php / footer.php / index.php / page.php / single.php / 404.php
                         Deliberately minimal — most real page layouts are built from blocks, not these
 blocks/                 One directory per block (add_block.sh scaffolds here)
@@ -210,8 +217,9 @@ src/
     base.css            Reboot-equivalent element reset
     layout.css           .container / .row / subgrid
     nav.css             .navbar, mobile toggle, dropdown submenus
-    forms.css           Minimal form base + .btn
-    tables.css          Opt-in, not imported by default
+    forms.css           Minimal form base + .btn (shared with .gform_button and .wp-block-button__link) + Gravity Forms consent field
+    quote.css / footnotes.css / toc.css  core/quote reset, [Footnote] list, [cb_toc] — styles for the inc/ features above
+    tables.css / accordion.css  Opt-in, not imported by default
     utilities.css        GENERATED — do not hand-edit, see generate-utilities.js
     blocks.css           GENERATED — concatenation of src/blocks/*.css
   blocks/               Block-specific CSS, separate from theme-wide src/css/.
@@ -219,21 +227,29 @@ src/
                         drop one in here and it's picked up automatically on next
                         build (glob, alphabetical order, no registration step).
   js/
-    theme.js            Entry point, imports the two below
+    theme.js            Entry point — imports the modules below plus any chosen optional module's init
     nav-toggle.js        Mobile nav collapse — vanilla JS replacement for Bootstrap Collapse
-    dialog.js            Native <dialog> wiring — vanilla JS replacement for Bootstrap Modal
+    dialog.js            Native <dialog> wiring — vanilla JS replacement for Bootstrap Modal; <iframe data-src> inside loads on open, unloads on close
+    nav-dropdown.js       Submenu toggling
+    scroll-animate.js    Empty placeholder for per-project scroll-reveal code
   build/
     tokens.config.js     Breakpoints + utility/grid definitions — source of truth for generate-utilities.js
     generate-utilities.js  Generates src/css/utilities.css and src/css/blocks.css
     generate-theme-json.js Generates theme.json from src/css/tokens.css
+    read-tokens.js       Shared :root token reader for both generators — resolves @imports, reads every :root block, brace-aware (the old first-block regex truncated after a nested @media)
     postcss.config.js    postcss-import + postcss-nesting + autoprefixer
     rollup.config.js / babel.config.js / terser.config.json / banner.js
                         JS bundling — no nodeResolve/commonjs, there are no npm JS deps to bundle
     browser-sync.config.js
+js/gallery-field.js, repeater-field.js, tabs.js
+                        wp-admin scripts for the Site-Wide Settings page (jQuery from core), enqueued by inc/options.php with filemtime versions
+js/vendor/              Vendored third-party libs, committed (served locally, never CDN) — empty unless a module (smooth-scroll) adds some
+modules/                Opt-in features installed (then deleted) by setup.sh — see "Optional modules" below
+templates/              header-flat.php / header-stacked.php — setup.sh writes one into header.php, then deletes this directory
 css/ , js/              Compiled output — committed to git (not gitignored), same convention as
                         the Understrap-based themes this replaced
 add_block.sh            Prompts for a block name, then loops prompting for each field's name and
-                        type (text/textarea/richtext/image/url/link/number/select/checkbox),
+                        type (text/textarea/richtext/image/url/link/number/select/checkbox; url uses SiteUrlInput/URLInput),
                         generating block.json's attributes, the matching src/edit.js control, and
                         a render.php $attributes stub for each one. Not yet supported by the
                         generator: repeater, gallery, relationship, post_object, file — add those
@@ -243,9 +259,10 @@ add_block.sh            Prompts for a block name, then loops prompting for each 
 rm_block.sh             Removes a block: the whole blocks/{slug} directory, and
                         src/blocks/{slug}.css if present. No registration to undo.
 setup.sh                One-time bootstrap for a NEW project checked out from this skeleton —
-                        prompts for a theme name + slug, renames every cb-js-skeleton2026 /
-                        CB JS Skeleton 2026 / cb_js_skeleton_ / CB_JS_Skeleton_ reference, resets git to
-                        a fresh single commit. Refuses to run twice (idempotency guard) or on a
+                        prompts for a theme name + slug, local dev URL (browser-sync), header style
+                        (flat/stacked) and which optional modules to keep, renames every cb-js-skeleton2026 /
+                        CB JS Skeleton 2026 / cb_js_skeleton_ / CB_JS_Skeleton_ reference, installs the chosen
+                        modules, deletes templates/ and modules/, resets git to a fresh single commit. Refuses to run twice (idempotency guard) or on a
                         dirty tree. Does NOT create a GitHub repo — that's a deliberate manual
                         step (gh repo create), not automated. See README.md.
 theme.json              GENERATED by generate-theme-json.js — do not hand-edit
@@ -256,7 +273,7 @@ theme.json              GENERATED by generate-theme-json.js — do not hand-edit
 ```
 pnpm install
 npm run watch        # rebuild theme-wide CSS/JS on save
-npm run watch-bs     # same + browser-sync live reload, proxies localhost/
+npm run watch-bs     # same + browser-sync live reload, proxies the local URL given to setup.sh (src/build/browser-sync.config.js)
 npm run blocks:build # one-off compile of every blocks/*/src/index.js
 npm run blocks:start # watch mode for block JS, wp-scripts' own watcher
 npm run dist         # one-off full build: css + js + blocks:build
@@ -290,4 +307,14 @@ that `clean: false` without replacing it with something that can't do that.
   ACF-based skeleton this one forked from) if a project specifically needs
   ACF instead of native blocks.
 
-- **Optional modules live in `modules/` and are installed by `setup.sh`.** Each is `module.conf` (`description=`, `js_import=fn|./file[|first]`, `css_import=`, `php_require=`) plus a `files/` overlay mirroring the theme root. `setup.sh` prompts y/N per module, copies the chosen ones in after the rename pass (so files carry the project prefix), wires imports/requires, then deletes `modules/`. Add a new opt-in feature there rather than to the core theme when not every project needs it.
+## Optional modules
+
+Each `modules/<name>/` is a `module.conf` plus a `files/` overlay mirroring the theme root. `setup.sh` prompts y/N per module, copies the chosen ones in after the rename pass (so files carry the project prefix), wires them, then deletes `modules/`. Add a new opt-in feature there rather than to the core theme when not every project needs it.
+
+`module.conf` keys (each may repeat): `description=`, `js_import=fn|./file[|first]` (import + call in `src/js/theme.js`; `first` calls it before the others), `css_import=file.css` (appended to `src/css/theme.css`), `php_require=inc/file.php` (appended in `functions.php`).
+
+Current modules: `popover`, `video-facade`, `share` (JS only), `smooth-scroll` (Lenis + GSAP/ScrollTrigger vendored under `js/vendor/`, plus `inc/smooth-scroll.php` enqueueing at priority 5 so they run before `theme.min.js`), `fixed-header` (CSS: fixed `#masthead`, static `--nav-height` offset), `btn-video` (CSS), `helpers` (`inc/helpers.php`). To test the flow, run `setup.sh` against a throwaway copy (without `.git` is fine).
+
+## Companion plugin: CBP Block Builder (`ChillibyteUK/cbp-block-builder`)
+
+A wp-admin GUI alternative to `add_block.sh`, local-only (see its own README). It writes `blocks/{slug}/` into this theme, so it depends on this theme's shape: `blocks/*/block.json` auto-registration, an `.{prefix}-editor-block` rule in `src/css/editor.css`, and `blocks/_shared/EditorBlockShell.js`, `RepeaterField.js` (with its `radio` branch) and `PostTypePicker.js`. Don't rename or remove those without checking the plugin. It covers gallery, file, radio, repeater and post-type fields, which `add_block.sh` doesn't; relationship and user-picker still need hand-building.

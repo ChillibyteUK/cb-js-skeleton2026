@@ -202,8 +202,20 @@
 	background: #fff;
 }
 
+/*
+ * Controls nested inside a custom field wrapper (the URL input, whose own
+ * input is a base control) must not take the shell's base-control padding as
+ * well as the wrapper's — that was the inset, double-padded URL field.
+ */
+.cb-js-skeleton-editor-field .components-base-control {
+	padding: 0;
+}
+
 .cb-js-skeleton-editor-field__label {
 	display: block;
+	/* WordPress's admin font stack, so these labels match the core controls' labels. */
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	line-height: 1.4;
 	margin-bottom: 0.5rem;
 	font-size: 0.6875rem;
 	font-weight: 600;
