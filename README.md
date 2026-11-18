@@ -242,7 +242,7 @@ has to be copied in from the skeleton by hand (follow its `module.conf`).
 | `smooth-scroll` | Lenis + GSAP/ScrollTrigger (vendored) with `inc/smooth-scroll.php` |
 | `fixed-header` | Fixed `#masthead` with static `--nav-height` offset (CSS; the TOC, footnote and anchor scroll margins already read `--nav-height`) |
 | `btn-video` | `.btn-video` play-icon button extender (CSS) |
-| `helpers` | `inc/helpers.php` seeded with `content_excerpt()` |
+| `helpers` | `inc/helpers.php` (required from `functions.php`) — a home for project-specific PHP functions, as opposed to the project-agnostic `inc/utilities.php`. Seeded with `content_excerpt()`, an excerpt built from the post content that ignores the manual excerpt field. Skip it if the project needs no custom functions; create the file later by hand if that changes |
 
 `module.conf` keys (each may repeat): `description=`, `js_import=fn|./file[|first]`
 (import + call in `src/js/theme.js`), `css_import=file.css` (appended to
