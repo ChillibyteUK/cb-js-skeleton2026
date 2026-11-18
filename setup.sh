@@ -30,7 +30,7 @@ if [ -d .git ] && [ -n "$(git status --short 2>/dev/null)" ]; then
   exit 1
 fi
 
-read -p "New theme name (e.g. \"LC New Client 2026\"): " new_name
+read -p "New theme name (e.g. \"CB New Client 2026\"): " new_name
 if [ -z "$new_name" ]; then
   echo "No theme name provided."
   exit 1
@@ -93,7 +93,7 @@ new_prefix_kebab=$(echo "$new_prefix" | tr '_' '-')
 
 # The one class name (CB_JS_Skeleton_Nav_Walker) uses mixed case, so it's
 # derived from the name instead, word by word — already-uppercase words
-# (acronyms like "LC") are preserved as typed rather than forced to "Lc".
+# (acronyms like "CB") are preserved as typed rather than forced to "Cb".
 new_prefix_pascal=""
 for word in $new_name; do
   if [[ "$word" =~ ^[A-Z0-9]+$ ]]; then
