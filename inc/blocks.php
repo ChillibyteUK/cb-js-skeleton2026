@@ -240,3 +240,73 @@ function cb_js_skeleton_wrap_block_in_container( $attributes, $content ) { // ph
 
 	return '<div class="container">' . $content . '</div>';
 }
+
+/**
+ * Is this block empty — nothing visible in it?
+ *
+ * Containers (columns, groups) are empty when everything inside them is.
+ * Custom HTML counts as empty only if it holds no markup at all, so a lone
+ * JSON-LD script or shortcode block is kept.
+ *
+ * @param array $block Parsed block.
+ * @return bool
+ */
+function cb_js_skeleton_block_is_empty( $block ) {
+	$name = $block['blockName'] ?? null;
+
+	if ( null === $name ) {
+		return '' === trim( preg_replace( '/(&nbsp;|\s|<br\s*\/?>)+/i', ' ', $block['innerHTML'] ?? '' ) );
+	}
+
+	if ( in_array( $name, array( 'core/columns', 'core/column', 'core/group' ), true ) ) {
+		foreach ( $block['innerBlocks'] as $inner ) {
+			if ( ! cb_js_skeleton_block_is_empty( $inner ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	if ( in_array( $name, array( 'core/paragraph', 'core/heading', 'core/list', 'core/spacer' ), true ) ) {
+		if ( 'core/list' === $name && ! empty( $block['innerBlocks'] ) ) {
+			return false;
+		}
+		$text = wp_strip_all_tags( $block['innerHTML'] ?? '' );
+		return '' === trim( str_replace( array( '&nbsp;', "\xC2\xA0" ), ' ', $text ) );
+	}
+
+	if ( 'core/html' === $name ) {
+		return '' === trim( $block['innerHTML'] ?? '' );
+	}
+
+	return false;
+}
+
+/**
+ * Drop empty blocks from the end of a page's content on the front end.
+ *
+ * Editors often leave an empty paragraph or Columns block after the last
+ * real block, which renders as a blank stripe above the footer. Filtering at
+ * render time means nothing saved is changed and it can't come back.
+ *
+ * @param string $content Post content before blocks are rendered.
+ * @return string
+ */
+function cb_js_skeleton_trim_trailing_empty_blocks( $content ) {
+	if ( is_admin() || ! has_blocks( $content ) ) {
+		return $content;
+	}
+
+	$blocks = parse_blocks( $content );
+
+	while ( $blocks ) {
+		$last = end( $blocks );
+		if ( ! cb_js_skeleton_block_is_empty( $last ) ) {
+			break;
+		}
+		array_pop( $blocks );
+	}
+
+	return serialize_blocks( $blocks );
+}
+add_filter( 'the_content', 'cb_js_skeleton_trim_trailing_empty_blocks', 8 );

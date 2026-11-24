@@ -142,16 +142,16 @@ nesting are all used without hesitation.
 
 ```
 pnpm install
-npm run watch        # rebuilds theme-wide CSS/JS on save
-npm run watch-bs     # same, plus browser-sync live reload (proxies the local URL
+pnpm run watch        # rebuilds theme-wide CSS/JS on save
+pnpm run watch-bs     # same, plus browser-sync live reload (proxies the local URL
                      # you gave setup.sh; edit src/build/browser-sync.config.js to change it)
-npm run blocks:build # compiles every block's src/index.js
-npm run blocks:start # watch mode for block JS
-npm run dist         # one-off full build: css + js + blocks
-npm run generate-theme-json   # regenerate theme.json from tokens.css
+pnpm run blocks:build # compiles every block's src/index.js
+pnpm run blocks:start # watch mode for block JS
+pnpm run dist         # one-off full build: css + js + blocks
+pnpm run generate-theme-json   # regenerate theme.json from tokens.css
 ```
 
-`npm run css` runs three steps: `generate-utilities.js` (produces
+`pnpm run css` runs three steps: `generate-utilities.js` (produces
 `src/css/utilities.css` — the breakpoint-suffixed grid/utility classes — and
 `src/css/blocks.css`, a concatenation of `src/blocks/*.css`), then
 PostCSS (`postcss-import` + `postcss-nesting` + `autoprefixer`), then
@@ -171,7 +171,7 @@ textarea, richtext, image, url, link, number, select, checkbox). Generates
 using WordPress's own field components — no ACF, no `get_field()`), and
 `render.php` (front-end template, reading straight from `$attributes`).
 No registration step — `inc/blocks.php` auto-loads every `blocks/*/block.json`
-it finds. Run `npm run blocks:build` after scaffolding, or the block won't
+it finds. Run `pnpm run blocks:build` after scaffolding, or the block won't
 render correctly until `build/index.js` exists.
 
 Not yet supported by `add_block.sh` directly: repeater, gallery, radio,
@@ -184,7 +184,7 @@ drop-in — build it by hand. The CBP Block Builder plugin (next section)
 generates repeater, gallery, file, radio and post-type fields for you.
 
 If the block needs custom styles, add `src/blocks/{block-slug}.css`; it's
-picked up automatically on the next `npm run css`, no registration step.
+picked up automatically on the next `pnpm run css`, no registration step.
 Load order for these is alphabetical by filename, not registration order.
 
 `rm_block.sh` removes a block: the whole `blocks/{slug}` directory plus its
@@ -196,7 +196,7 @@ Load order for these is alphabetical by filename, not registration order.
 replacement for `add_block.sh`. Design a block's title and fields in wp-admin
 (**Block Builder** menu), click **Create Block**, and it writes
 `blocks/{slug}/` (`block.json`, `src/index.js`, `src/edit.js`, `render.php`)
-into the active theme — then run `npm run blocks:build`. It goes further than
+into the active theme — then run `pnpm run blocks:build`. It goes further than
 the CLI:
 
 - Extra field types — gallery, file, radio, repeater (text / number /
@@ -211,7 +211,7 @@ Things to know:
 - **Local only** — it does nothing unless `wp_get_environment_type()` is
   `local` or the hostname ends in `.local`, so it's safe to leave installed.
 - It only writes new `blocks/{slug}/` directories (it never edits other theme
-  files or touches git) and doesn't run npm for you.
+  files or touches git) and doesn't run pnpm for you.
 - **It relies on this theme's shape**: auto-registration via
   `blocks/*/block.json`, an `.{prefix}-editor-block` rule in
   `src/css/editor.css` (how it finds the editor class prefix — `setup.sh`'s

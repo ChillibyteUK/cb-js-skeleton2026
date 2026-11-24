@@ -3,7 +3,7 @@
 // for the WordPress block editor.
 //
 // Usage:
-//   npm run generate-theme-json
+//   pnpm run generate-theme-json
 //
 // Reads the :root custom properties from src/css/tokens.css and generates
 // theme.json with a color palette and font sizes for Gutenberg.

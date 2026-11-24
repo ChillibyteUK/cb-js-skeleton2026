@@ -36,7 +36,9 @@ theme_slug=$(grep "Text Domain:" "$style_file" | sed 's/.*Text Domain:[ ]*//' | 
 
 echo ""
 echo "Add fields one at a time. Leave the field name blank to finish."
-echo "Supported types: text, textarea, richtext, image, url, link, number, select, checkbox"
+echo "Supported types: text, textarea, richtext, content, image, url, link, number, select, checkbox"
+echo "  content = a block field (/paragraph /list /heading /spacer, via InnerBlocks) for long-form"
+echo "  multi-line text. A block can have only ONE content field; use richtext for any other."
 echo "Not yet supported by this generator: repeater, gallery, relationship, post_object, file"
 echo "— add those by hand in src/edit.js if a block needs one."
 echo "Each field also asks for optional help text and a column width (100/50/33/25) —"
@@ -48,6 +50,7 @@ field_types=()
 field_labels=()    # original human label
 field_snakes=()    # snake_case PHP variable name
 field_options=()   # comma-separated options, select only
+has_content=0     # 1 once a content (InnerBlocks) field has been added — only one allowed per block
 field_ta_styles=() # textarea only: paragraph/list/linebreak
 field_link_targets=() # link only: 1 if an "open in new tab" toggle is wanted
 field_helps=()   # optional help text, shown under the control
@@ -62,14 +65,24 @@ while true; do
   field_snake=$(echo "$field_label" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | tr -cd 'a-z0-9_')
   field_camel=$(echo "$field_snake" | awk -F_ '{ out=$1; for (i=2; i<=NF; i++) { out = out toupper(substr($i,1,1)) substr($i,2) }; print out }')
 
-  read -p "Field type [text/textarea/richtext/image/url/link/number/select/checkbox]: " field_type
+  read -p "Field type [text/textarea/richtext/content/image/url/link/number/select/checkbox]: " field_type
   case "$field_type" in
-    text|textarea|richtext|image|url|link|number|select|checkbox) ;;
+    text|textarea|richtext|content|image|url|link|number|select|checkbox) ;;
     *)
       echo "Unrecognised type '${field_type}', defaulting to text."
       field_type="text"
       ;;
   esac
+
+  # A block has a single InnerBlocks area, so only one content field fits.
+  if [ "$field_type" = "content" ]; then
+    if [ "$has_content" = "1" ]; then
+      echo "A block can only have one content field — using richtext for '${field_label}' instead."
+      field_type="richtext"
+    else
+      has_content=1
+    fi
+  fi
 
   field_option_list=""
   if [ "$field_type" = "select" ]; then
@@ -133,6 +146,9 @@ for i in "${!field_names[@]}"; do
     text|textarea|richtext|url|select)
       attr_lines+=("\t\t\"${name}\": { \"type\": \"string\", \"default\": \"\" }")
       ;;
+    content)
+      # Stored as inner blocks, not an attribute.
+      ;;
     number)
       attr_lines+=("\t\t\"${name}\": { \"type\": \"number\", \"default\": 0 }")
       ;;
@@ -191,6 +207,20 @@ echo "Created: ${block_dir}/block.json"
 # ---------------------------------------------------------------------------
 # src/index.js
 # ---------------------------------------------------------------------------
+if [ "$has_content" = "1" ]; then
+cat > "${block_dir}/src/index.js" <<'EOF'
+import { registerBlockType } from '@wordpress/blocks';
+import { InnerBlocks } from '@wordpress/block-editor';
+import Edit from './edit';
+import metadata from '../block.json';
+
+registerBlockType( metadata.name, {
+	edit: Edit,
+	// The content field is inner blocks; everything else renders in render.php.
+	save: () => <InnerBlocks.Content />,
+} );
+EOF
+else
 cat > "${block_dir}/src/index.js" <<'EOF'
 import { registerBlockType } from '@wordpress/blocks';
 import Edit from './edit';
@@ -201,6 +231,7 @@ registerBlockType( metadata.name, {
 	save: () => null,
 } );
 EOF
+fi
 echo "Created: ${block_dir}/src/index.js"
 
 # ---------------------------------------------------------------------------
@@ -214,6 +245,7 @@ need_selectcontrol=0
 need_togglecontrol=0
 need_button=0
 need_urlinput=0
+need_innerblocks=0
 
 for i in "${!field_types[@]}"; do
   type="${field_types[$i]}"
@@ -222,6 +254,7 @@ for i in "${!field_types[@]}"; do
     url) need_urlinput=1 ;;
     textarea) need_textareacontrol=1 ;;
     richtext) need_richtext=1 ;;
+    content) need_innerblocks=1 ;;
     image) need_media=1; need_button=1 ;;
     link)
       need_textcontrol=1
@@ -235,6 +268,7 @@ done
 
 blockeditor_imports="useBlockProps"
 [ "$need_richtext" = "1" ] && blockeditor_imports="${blockeditor_imports}, RichText"
+[ "$need_innerblocks" = "1" ] && blockeditor_imports="${blockeditor_imports}, useInnerBlocksProps"
 [ "$need_media" = "1" ] && blockeditor_imports="${blockeditor_imports}, MediaUpload, MediaUploadCheck"
 
 components_imports=()
@@ -256,6 +290,7 @@ for i in "${!field_names[@]}"; do
       attr_destructure+=("${name}Text" "${name}Url")
       [ "${field_link_targets[$i]}" = "1" ] && attr_destructure+=("${name}Target")
       ;;
+    content) ;; # inner blocks, not an attribute
     *) attr_destructure+=("$name") ;;
   esac
 done
@@ -296,6 +331,9 @@ for i in "${!field_names[@]}"; do
       ;;
     richtext)
       field_html+=("\t\t\t<div className=\"cb-js-skeleton-editor-field\">\n\t\t\t\t<label className=\"cb-js-skeleton-editor-field__label\">{ __( '${label}', '${theme_slug}' ) }</label>\n\t\t\t\t<RichText\n\t\t\t\t\ttagName=\"div\"\n\t\t\t\t\tclassName=\"cb-js-skeleton-editor-field__control\"\n\t\t\t\t\taria-label={ __( '${label}', '${theme_slug}' ) }\n\t\t\t\t\tplaceholder={ __( '${label}', '${theme_slug}' ) }\n\t\t\t\t\tvalue={ ${name} }\n\t\t\t\t\tonChange={ ( value ) => setAttributes( { ${name}: value } ) }\n\t\t\t\t/>${help_para}\n\t\t\t</div>\n")
+      ;;
+    content)
+      field_html+=("\t\t\t<div className=\"cb-js-skeleton-editor-field\">\n\t\t\t\t<label className=\"cb-js-skeleton-editor-field__label\">{ __( '${label}', '${theme_slug}' ) }</label>\n\t\t\t\t<div { ...innerBlocksProps } />${help_para}\n\t\t\t</div>\n")
       ;;
     checkbox)
       field_html+=("\t\t\t<ToggleControl\n\t\t\t\tlabel={ __( '${label}', '${theme_slug}' ) }\n\t\t\t\tchecked={ ${name} }\n\t\t\t\tonChange={ ( value ) => setAttributes( { ${name}: value } ) }${help_attr}\n\t\t\t/>\n")
@@ -360,6 +398,16 @@ done
     echo "	const { ${attr_destructure_line} } = attributes;"
   fi
   echo "	const blockProps = useBlockProps( { className: 'container cb-js-skeleton-editor-block' } );"
+  if [ "$need_innerblocks" = "1" ]; then
+    echo "	const innerBlocksProps = useInnerBlocksProps("
+    echo "		{ className: 'cb-js-skeleton-editor-field__control cb-js-skeleton-inner-content' },"
+    echo "		{"
+    echo "			allowedBlocks: [ 'core/paragraph', 'core/list', 'core/heading', 'core/spacer' ],"
+    echo "			template: [ [ 'core/paragraph' ] ],"
+    echo "			templateLock: false,"
+    echo "		}"
+    echo "	);"
+  fi
   echo ""
   echo "	return ("
   echo "		<EditorBlockShell blockProps={ blockProps } clientId={ clientId } title=\"${block_name}\" textDomain=\"${theme_slug}\">"
@@ -402,6 +450,10 @@ for i in "${!field_names[@]}"; do
           markup_lines+="\t<?php if ( \$${snake} ) { ?>\n\t\t<div><?php echo wp_kses_post( wpautop( \$${snake} ) ); ?></div>\n\t<?php } ?>\n"
           ;;
       esac
+      ;;
+    content)
+      # $content is the rendered inner blocks, supplied by WordPress.
+      markup_lines+="\t<?php if ( trim( \$content ) ) { ?>\n\t\t<div class=\"${block_kebab}__content\"><?php echo wp_kses_post( \$content ); ?></div>\n\t<?php } ?>\n"
       ;;
     richtext)
       extract_lines+="\$${snake} = \$attributes['${name}'] ?? '';\n"
@@ -458,4 +510,4 @@ echo "Created: ${block_dir}/render.php"
 
 echo ""
 echo "If this block needs custom styles, add: ./src/blocks/${block_kebab}.css (picked up automatically, no registration needed)"
-echo "Run 'npm run blocks:build' (or 'npm run blocks:start' while developing) before using this block — it won't appear correctly until build/index.js exists."
+echo "Run 'pnpm run blocks:build' (or 'pnpm run blocks:start' while developing) before using this block — it won't appear correctly until build/index.js exists."

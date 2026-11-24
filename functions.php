@@ -33,5 +33,6 @@ require_once CB_JS_SKELETON_DIR . '/inc/utilities.php';
 require_once CB_JS_SKELETON_DIR . '/inc/posttypes.php';
 require_once CB_JS_SKELETON_DIR . '/inc/taxonomies.php';
 require_once CB_JS_SKELETON_DIR . '/inc/security.php';
+require_once CB_JS_SKELETON_DIR . '/inc/media.php';
 require_once CB_JS_SKELETON_DIR . '/inc/toc.php';
 require_once CB_JS_SKELETON_DIR . '/inc/footnotes.php';

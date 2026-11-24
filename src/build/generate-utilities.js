@@ -12,7 +12,7 @@
  *    src/blocks/*.css. Add a file there named after a block's slug and
  *    it's picked up automatically on the next build; no registration needed.
  *
- * Run directly (`npm run css-generate`) or as part of `npm run css`.
+ * Run directly (`pnpm run css-generate`) or as part of `pnpm run css`.
  */
 
 const fs = require('fs');

@@ -41,6 +41,26 @@ add_action( 'enqueue_block_editor_assets', 'cb_js_skeleton_disable_editor_fullsc
 // phpcs:enable
 
 /**
+ * Suppress the "Welcome to the editor" guide and the pre-publish checks
+ * panel (the extra confirmation sidebar shown when you press Publish).
+ *
+ * Both are per-user preferences stored by core, so this sets them through
+ * the preferences/editor stores on every editor load; the user can't
+ * switch them back on while the theme is active.
+ *
+ * @return void
+ */
+function cb_js_skeleton_suppress_editor_nags() {
+	$script = "wp.domReady( function () {
+		wp.data.dispatch( 'core/preferences' ).set( 'core/edit-post', 'welcomeGuide', false );
+		wp.data.dispatch( 'core/preferences' ).set( 'core/edit-post', 'welcomeGuideTemplate', false );
+		wp.data.dispatch( 'core/editor' ).disablePublishSidebar();
+	} );";
+	wp_add_inline_script( 'wp-edit-post', $script );
+}
+add_action( 'enqueue_block_editor_assets', 'cb_js_skeleton_suppress_editor_nags' );
+
+/**
  * Disable the block inserter's extra Media/Openverse panel.
  *
  * This theme keeps the editor pared back and does not use WordPress's stock
